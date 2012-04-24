@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Wireshark
+Comment=Wireshark packet capturing
+Exec=wireshark %u
+Terminal=false
+Type=Application
+Icon=/usr/share/pixmaps/hi48-app-wireshark.png
+Categories=Application;Utility;
+StartupNotify=true
+MimeType=application/octet-stream
+NoDisplay=false
+
