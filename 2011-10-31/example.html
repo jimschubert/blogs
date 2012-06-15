@@ -1,0 +1,87 @@
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.js"></script>
+
+<script type="text/javascript">
+(function($) { 
+	$.fn.fixedHeader = function(options) {
+		var settings = { 
+			selector: 'thead:first',
+			cssClass: 'fixed',
+			fixTo: 0
+		};
+		
+		var _fixHeader = function(obj) { 
+			var header = $(obj.selector, obj.elem);
+			if(header) {
+				var parent =  header.parents('table:first') || header.parent();
+				(parent && parent.css({ borderCollapse: 'collapse'}) );
+				
+				var data = header.data('fixedHeader') || header.data('fixedHeader', { 
+						top: header.offset().top,
+						width: parent.find('tr:eq(1)').width(),
+						cells: parent.find('tr:eq(1) > td'),
+						processed: false
+					});
+				var top = data.top - $(document).scrollTop();
+				if( top < 0 ) {
+					header.addClass(obj.css);	
+					if(!data.processed){
+						header.width(data.width);
+						for(var i = 0; i<data.cells.length;i++) {
+							$('th:eq('+i+')', header).width($(data.cells[i]).width());
+						}
+					}
+					
+				} else { 
+					header.removeClass(obj.css); 
+				}
+			}		
+		};
+		return this.each(function() {
+			var self = this;
+			if("object" === typeof options) {
+				$.extend(settings, options);
+			}
+			if($(self).parents('table:first')){
+				$(window).bind('scroll.fixedHeader', function() {
+					_fixHeader({ 
+						elem: self,
+						selector: settings.selector,
+						css: settings.cssClass,
+						top: settings.fixTo
+					});
+				});
+			}
+		});
+	};
+})(jQuery);
+
+$(function() {
+	var table = $('#example');
+	for(var i = 1; i < 50; i++) {
+		var row = $('<tr><td>first_'+i+'</td><td>second_'+i+'</td><td>third_'+i+'</td><td>fourth_'+i+'</td></tr>');
+		$('tbody', table).append(row);
+	}
+	$('thead:not(thead:eq(0))').remove();
+	table.fixedHeader();
+});
+</script>
+
+<style type="text/css">
+.fixed { position:fixed; background:white; border-bottom:1px dotted black;}
+</style>
+
+<table id="example">
+<thead>
+<tr>
+	<th>First</th>
+	<th>Second</th>
+	<th>Third</th>
+	<th>Fourth</th>
+</tr>
+<thead>
+<tbody></tbody>
+</table>
+
+<div id="scrollTop">
+
+</div>
