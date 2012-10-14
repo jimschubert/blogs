@@ -1,0 +1,15 @@
+{
+  "author": "Jim Schubert",
+  "license": "MIT",
+  "private": true,
+  "name": "Markers",
+  "version": "0.0.0",
+  "description": "Generate markers sprite example",
+  "main": "markers.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "canvas": "0.13.0"
+  }
+}
