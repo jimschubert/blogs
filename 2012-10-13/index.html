@@ -1,0 +1,113 @@
+<html>
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <script src="example-plugin.js"></script>
+    <script>
+    $(function() {
+       $('.exemplify-defaults').example(); 
+       $('.exemplify-custom').example({
+            boxCss: "plugin-example",
+            labelCss: "plugin-example-label",
+            exampleAttr: "data-label"
+       });
+       
+       $('#noCode').example({
+          onError: function(msg) {
+              $('#errorOutput').text(msg);
+          } 
+       });
+    });
+    </script>
+    <style>
+        
+body {
+width: 960px;
+margin-left:auto;
+margin-right:auto;
+}
+
+pre { margin: 0; padding: 0; }
+code {
+padding:5px;
+display:block;
+}
+
+.example-box {
+border:1px dotted #FF0000;
+border-radius: 0px 5px 5px 5px;
+}
+
+.example-label {
+padding:0px 15px 2px 10px;
+height:20px;
+border:1px dotted #FF0000;
+border-bottom-right-radius: 5px;
+font-size: 0.8em;
+font-style: italic;
+}
+
+.plugin-example {
+border: 1px solid rgba(0, 0, 0, 0.2);
+padding: 0 10px 10px 0  ;
+box-shadow: 1px 2px 5px;
+border-radius: 0px 5px 5px 5px;
+margin-top:15px;
+}
+
+.plugin-example-label {
+font-family:console;
+position: relative;
+top: -7px;
+left: -15px;
+border: 1px solid rgba(0, 0, 0, 0.5);
+border-radius: 8px;
+background-color: white;
+padding: 4px;
+text-shadow: 1px 1px 1px grey;
+}
+
+.blue {
+color: blue;
+}
+
+.red {
+color: red;
+}
+    </style>
+</head>
+
+<body>
+<h1>Using defaults</h1>
+
+Inspecting the following code, you should find <code>&lt;div class="example-box"&gt;</div></code>
+and <code>&lt;span class="example-label"&gt;</span></code>
+
+<pre class="exemplify-defaults"><code>;(function($) {
+    $.fn.example = function(arg) {
+        console.log(this);
+    };
+})(jQuery);
+</code></pre>
+
+<h1>Using custom</h1>
+
+Inspecting the following code, you should find <code>&lt;div class="plugin-example-box"&gt;</div></code>
+and <code>&lt;span class="plugin-example-label"&gt;</span></code>
+You should also see that, instead of the 'label' displaying 'Example', it matches whatever text is found in the
+'data-label' attribute on the node.
+
+<pre class="exemplify-custom" data-label="example-plugin.js"><code>;(function($) {
+    $.fn.example = function(arg) {
+        console.log(this);
+    };
+})(jQuery);
+</code></pre>
+
+<h1>This shouldn't be modified</h1>
+<pre id="noCode">
+Here's some example text
+</pre>
+And an output message from the 'onError' function should display here:
+<div id="errorOutput"></div>
+</body>
+</html>

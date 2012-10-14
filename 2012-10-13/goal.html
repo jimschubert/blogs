@@ -1,0 +1,51 @@
+<html>
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <link rel="stylesheet" href="prettify.css" type="text/css" />
+</head>
+<style>
+
+body {
+width: 960px;
+margin-left:auto;
+margin-right:auto;
+}
+
+pre { margin: 0; padding: 0; }
+code {
+padding:5px;
+display:block;
+}
+
+div.example-box {
+border:1px dotted #FF0000;
+border-radius: 0px 5px 5px 5px;
+}
+
+span.example-label {
+padding:0px 15px 2px 10px;
+height:20px;
+border:1px dotted #FF0000;
+border-bottom-right-radius: 5px;
+font-size: 0.8em;
+font-style: italic;
+}
+
+</style>
+<body>
+
+<div class="example-box">
+<span class="example-label">Example</span>
+<pre><code class="prettyprint">;(function($) {
+    $.fn.example = function(arg) {
+        console.log(this);
+    };
+})(jQuery);
+</code></pre>
+</div>
+</body>
+<script src="prettify.js" type="text/javascript"></script>
+<script>
+document.addEventListener('load', function (event) { prettyPrint() }, true);
+</script>
+</html>
