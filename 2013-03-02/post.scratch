@@ -1,0 +1,135 @@
+<h1>CommonJS Modules, node's require() and private members</h1>
+
+Interestingly, node.js <a href="http://nodejs.org/docs/latest/api/modules.html" alt="node.js modules">module documentation</a> doesn't even mention CommonJS or the specification proposal it implements.  I won't go over CommonJS <a href="http://wiki.commonjs.org/wiki/Modules/1.0" alt="CommonJS Modules 1.0">Modules 1.0</a> in-depth in this post, but I suggest you read both of these links if you plan to explore node.js development.
+
+An important take-away from this blog post (so important that I state it first) is that node.js caches modules. A module's exports are nothing more than an object. When you set a function or property to be exported, you're setting it on an object.
+
+Conceptually, this:
+
+[js]
+var someFunction = function(){ /* implement */ };
+module.exports.someFunction = exports.someFunction = someFunction;
+[/js]
+
+...is the same as doing this outside of CommonJS modules...
+
+[js]
+var someFunction = function(){ /* implement */ };
+var exports = {};
+exports.someFunction = someFuntion;
+[/js]
+
+I know, that seems like it should be common sense.  When node.js caches the exports object at the application level, I think understanding this can become hairy -- especially if you come from a compiled language background.
+
+For example, consider the following module.
+
+[js]
+var count = 0;
+
+var doSomethingShared = function(){
+	count += 1;
+	console.log("Shared call count: %d", count);
+};
+
+var doSomethingNotShared = function(){
+	console.log("Other modules don't know about me!");
+};
+
+module.exports.shared = exports.shared =  doSomethingShared;
+module.exports.unshared = exports.unshared =  doSomethingNotShared;
+[/js]
+
+We can require this module easily and play around with it in node REPL:
+
+[plain]
+$ node
+> var example = require('./example.js');
+undefined
+> example.shared()
+Shared call count: 1
+undefined
+> example.shared()
+Shared call count: 2
+undefined
+> example.shared()
+Shared call count: 3
+undefined
+> example.shared()
+Shared call count: 4
+undefined
+> example.unshared()
+Other modules don't know about me!
+undefined
+[/plain]
+
+In the same REPL instance, you can re-require the module and see that 'count' is indeed shared:
+
+[plain]
+> var example2 = require('./example.js');
+undefined
+> example2.shared()
+Shared call count: 5
+undefined
+> example2.shared()
+Shared call count: 6
+undefined
+[/plain]
+
+You can even require the shared function directly:
+[js]
+> var shared = require('./example.js').shared;
+undefined
+> shared()
+Shared call count: 7
+undefined
+> shared()
+Shared call count: 8
+undefined
+[/js]
+
+I think you get the point; private variables which aren't exported are shared. In this example, 'count' is a private static property of the module.
+
+<h2>Why this matters</h2>
+
+This is very important, because when working in the asynchronous environment of node.js you have to be aware about *what* is being cached privately at the module level.  In addition to this, if you plan to cache functions for whatever reason, you have to be incredibly sure you know what you're doing.  I recommend to <strong>NEVER CACHE CALLBACK FUNCTIONS</strong>. 
+
+As an example of this statement, I've created a sample file processor script in the github repo as fs-example.js.  That script reads this blog's directory in the repo, then loops over the files and executes 'processor', which is a custom broken module displaying the above problem.  fs-example.js does an inline require, which as you've seen above doesn't make a difference.
+
+The problem I'll display here exists because async calls are likely to take different lengths of time to execute.  My example is using the linux commands 'head -1' and 'tail -1' on each file to get the first and last lines, respectively. These commands are nearly instantaneous, so I'm using a random setTimeout to display the problem with caching functions.  You could easily modify these scripts to 'head' and 'tail' different web sites. But, whatever.  Because head.js and tail.js are simple spawn wrappers, I'll focus on processor.js, which is where the potential bugginess exists.
+
+[js]
+// begin processor.js
+var head = require('./head'),
+	tail = require('./tail');
+	
+// don't do this IRL
+var callback = null;
+
+var processor = function(file, cb){
+	if('function' === typeof cb){
+		callback = cb;
+	}
+	
+	// these fail
+	head(file, function(d){
+		callback(d)
+	});
+	tail(file, function(d){
+		callback(d)
+	});
+	
+	// these succeed
+	// head(file, callback);
+	// tail(file, callback);
+};
+
+module.exports = exports = processor;
+[/js]
+
+This is a simple file for having such a subtle bug. The file includes the customized head and tail scripts. Then, it creates a function that tags a file, caches the callback function, and calls head and tail to execute the callback.  You'll notice the commented-out lines at the end that claim 'these succeed'.  Here's why...
+
+When a callback is passed directly to a function as is done with <code>head(file, callback)</code>, the function itself is passed as a reference. Meaning, when the head module executes that callback, it will always execute the referenced callback.  Now, what if another developer wants to add logging or other processing of the data?  You'll likely get something like the example, where a function is created and callback is called directly (rather than the cb passed into the function originally).  Because 'callback' is cached at the module level and shared across calls to processor, the scope created by the processor function is shared with the anonymous function callback and points to whatever is the most recent callback function rather than what one might expect to be the intended function.
+
+We could avoid the problem in the above non-commented code by referencing the 'cb' parameter rather than the cached 'callback' variable. This is because processor creates a closure over 'callback', but 'cb' would always be within the current execution context.
+
+You can play around with the code from this post, which is available on <a href="https://github.com/jimschubert/blogs" alt="jimschubert github">github</a>.

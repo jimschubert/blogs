@@ -101,3 +101,4 @@ UpgradeLog*.XML
 # Ignore others
 *.userprefs
 *.mdb
+.DS_Store
