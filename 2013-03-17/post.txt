@@ -1,0 +1,114 @@
+Why I don't recommend the Step node module
+
+I prefer asyc to step. The async module has a cleaner interface, more options, and utilities. It's a little beefier in size, but those things are beside the point.
+
+Here's why I don't really like step.  Tell me what you'd expect from this function:
+
+[js]
+var Step = require('step');
+
+Step(
+	function first(){
+		console.log('first');
+		
+		this();
+	},
+	
+	function second(){
+		var x;
+		console.log('second');
+		if(!x){
+			// do something that should set x
+		}
+		return x;
+	},
+	
+	function third(){
+		console.log('third');
+	}
+)
+[/js]
+
+Did you guess:
+[plain]
+$ node step-example.js 
+first
+second
+[/plain]
+
+If you're not familiar with Step, you'll probably look at that first function and wonder what <code>this();</code> actually does. Well, it is actually shorthand for <code>next();</code> (I'm simplifying a little here).
+
+Assuming you're at least somewhat familiar with asynchronous control flow, you could assume <code>this();</code> calls the next function. But, what about the second function? It's returning a value. Does that return from <em>second</em>, or from <em>Step</em>, or from some other function? It returns from <em>second()</em>, but... it passes the value to <em>third</em>. Or, it should. Unless <em>x</em> is undefined, in which case it will be considered an unchained function. Now, I don't think your variables should regularly be 'undefined' at the point of return, but what if you use or someone on your team uses the popular convention of calling a callback as <code>return callback(x);</code>. If the Step module's convention of tweaking <em>this</em> semantics is ignored, another developer may look at it as a typo, "You can't call the context like that..." Right?  Also, what if someone doesn't understand the return value can't be <em>undefined</em> and comments out the middle of that function? You may have cleanup logic that isn't getting checked in <code>third()</code>.
+We've all seen that happen before.
+
+In the above example, if <em>x</em> was not <em>undefined</em>, it would be passed as a parameter to <code>third()</code>.
+
+It's this inconsistency which makes me feel like Step is an accident waiting to happen in a regular development team. The source code is pretty well written and concise. I think the author has done a great job, but the usage is unintuitive and I wouldn't recommend using the module.
+
+On the other hand, async is beautifully intuitive.
+
+Consider this example:
+
+[js]
+var async = require('async');
+
+async.series([
+	function first(done){
+		console.log('first');
+		done(null, 'first');
+	},
+	function second(done){
+		var x;
+		console.log('second');
+		if(!x){
+			// do something that should set x
+		}
+		done(null, x);
+	},
+	function third(done){
+		console.log('third');
+		
+		done(null, 'third');
+	}
+], function(err, results){
+	console.log(results);
+})
+[/js]
+
+async.series allows us to run a series of tasks (functions defined within the array), which pass a value to the callback (that last function you see).
+
+If you forget to pass a value, the results will contain <em>undefined</em> at the index of the array. Your third function won't be skipped unless you forget to invoke the callback. To me, this is a pretty obvious error and one that is easy to spot and correct.  Here's is the output of the above call:
+
+[plain]
+first
+second
+first
+third
+[ 'first', undefined, 'third' ]
+[/plain]
+
+To be fair, the example of Step acts more like a waterfall function. Here's what that would look like in async.
+
+[js]
+async.waterfall([
+	function first(done){
+		console.log('first');
+		done(null, 'first');
+	},
+	function second(val, done){
+		var x;
+		console.log('second has val: %j', val);
+		if(!x){
+			// do something that should set x
+		}
+		done(null, x);
+	},
+	function(val, done){
+		console.log('third has val: %j', val);
+		
+		done(null, 'third');
+	}
+], function(err, val){
+	console.log('callback has val: %j', val)
+});
+[/js]
