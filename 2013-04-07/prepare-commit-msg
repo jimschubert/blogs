@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+# For post http://www.ipreferjim.com/2013/04/git-prepare-commit-msg-with-node-js/
 var exec = require('child_process').exec,
     util = require('util'),
     fs = require('fs'),
