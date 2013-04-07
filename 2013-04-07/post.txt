@@ -1,0 +1,131 @@
+git prepare-commit-msg with node.js
+
+I think people often overlook using node.js as a scripting tool like ruby or python. If you search the web for examples of customized git hooks, you'll probably have visited <a href="http://git-scm.com/" alt="http://git-scm.com/">git-scm.com</a>, where most of the examples are in ruby.
+
+I wanted to show a pretty simple prepare-commit-msg hook written in node.js. This hook will append the name and description of whatever working branch you commit from. I use this technique to create a working branch for a JIRA ticket number, so all my commits to this ticket automatically include that ticket number. Then, JIRA can be configured to display github commits directly in the ticket details when that commit references the ticket in the commit message.
+
+The script:
+
+[js]
+#!/usr/bin/env node
+var exec = require('child_process').exec,
+    util = require('util'),
+    fs = require('fs'),
+    contents = null,
+    branch, desc;
+
+console.log(process.argv);
+
+// expect .git/COMMIT_EDITMSG
+if(/COMMIT_EDITMSG/g.test(process.argv[2])){
+	// look for current branch name
+    branch = exec("git branch | grep '*'",
+      function (err, stdout, stderr) {
+        if(err){
+			// git branch will fail if initial commit has not been done,
+			// so we can safely skip this hook
+			process.exit(0); 
+		}
+
+		// opens .git/COMMIT_EDITMSG
+        contents = fs.readFileSync(process.argv[2]);
+		
+		// trims extra characters from start/end of line
+        var name = stdout.replace('* ','').replace('\n','');
+		
+		// If the branch has a description, pull that
+        desc = exec('git config branch.'+ name +'.description',
+            function(err, stdout, stderr){
+				// don't handle errors (because we write out branch anyway)
+                
+				// we found a description, add to 'name'
+				if(stdout){ name = util.format('%s (%s)', name, stdout.replace(/\n/g,'')); }
+
+				// '(no branch)' indicates we are in a rebase or other non-HEAD scenario
+                if(name !== '(no branch)'){
+				
+					// Append branch name to original contents.
+                    contents = util.format('%s\n\n:%s\n', contents, name);
+					
+					// write contents back out to .git/COMMIT_EDITMSG
+                    fs.writeFileSync(process.argv[2], contents);
+                    process.exit(0);
+                } else {
+                    process.exit(0);
+                }
+        });
+    });
+}
+[/js]
+
+The above script is pretty well-commented. If you decide to use it, you may want to comment out the first console.log which dumps all arguments sent to the script.
+
+Here's an example of its usage.
+
+Create and initialize a new local git repository.
+
+[bash]
+$ mkdir example
+$ cd example
+$ git init
+[/bash]
+
+Then, copy the above example script into the git hooks directory under .git/hooks/prepare-commit-msg
+
+Now, in the example directory, create and commit a file into the repository:
+
+[bash]
+$ touch first
+$ git add .
+$ git commit -m 'Initial commit'
+[/bash]
+
+You'll see the array of arguments passed through the custom git hook, but if you issue a git log, you'll only see the commit message 'Initial commit'. That's because this custom hook expects a git branch, but there is no git branch until your initial commit is complete. To verify the script is working:
+
+[bash]
+$ touch second
+$ git add .
+$ git commit -m 'Second commit'
+[/bash]
+
+A git log will now show you a tweaked message:
+
+[plain]
+    Second commit
+    
+    :master
+[/plain]
+
+Now, you can create a branch named 'ABC-123' and do another commit:
+
+[bash]
+$ git checkout -b ABC-123
+$ touch third
+$ git add .
+$ git commit -m 'Third commit'
+[/bash]
+
+The commit message:
+[plain]
+    Third commit
+    
+    :ABC-123
+[/plain]
+
+This hook also allows you to print out the branch description.  To test, invoke the branch description editor:
+[bash]
+$ git branch --edit-description ABC-123
+[/bash]
+
+I've added the text 'Supporting branch for ABC-234 and ABC-567'. Save this buffer according to your editor (<strong>:wq</strong> if you're using vim).
+
+Add a fourth file as we have before, then verify with git log:
+[plain]
+    Fourth commit
+    
+    :ABC-123 (Supporting branch for ABC-234 and ABC-567)
+[/plain]
+
+Because this script strips newlines from the branch description, you'd need to keep it short. Usually, that's not a problem.
+
+This shows how to append text to your commit message, but it can easily be modified to replace commonly misspelled words (teh -> the).

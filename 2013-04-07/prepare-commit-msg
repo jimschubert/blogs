@@ -1,0 +1,49 @@
+#!/usr/bin/env node
+var exec = require('child_process').exec,
+    util = require('util'),
+    fs = require('fs'),
+    contents = null,
+    branch, desc;
+
+console.log(process.argv);
+
+// expect .git/COMMIT_EDITMSG
+if(/COMMIT_EDITMSG/g.test(process.argv[2])){
+	// look for current branch name
+    branch = exec("git branch | grep '*'",
+      function (err, stdout, stderr) {
+        if(err){
+			// git branch will fail if initial commit has not been done,
+			// so we can safely skip this hook
+			process.exit(0); 
+		}
+
+		// opens .git/COMMIT_EDITMSG
+        contents = fs.readFileSync(process.argv[2]);
+		
+		// trims extra characters from start/end of line
+        var name = stdout.replace('* ','').replace('\n','');
+		
+		// If the branch has a description, pull that
+        desc = exec('git config branch.'+ name +'.description',
+            function(err, stdout, stderr){
+				// don't handle errors (because we write out branch anyway)
+                
+				// we found a description, add to 'name'
+				if(stdout){ name = util.format('%s (%s)', name, stdout.replace(/\n/g,'')); }
+
+				// '(no branch)' indicates we are in a rebase or other non-HEAD scenario
+                if(name !== '(no branch)'){
+				
+					// Append branch name to original contents.
+                    contents = util.format('%s\n\n:%s\n', contents, name);
+					
+					// write contents back out to .git/COMMIT_EDITMSG
+                    fs.writeFileSync(process.argv[2], contents);
+                    process.exit(0);
+                } else {
+                    process.exit(0);
+                }
+        });
+    });
+}
